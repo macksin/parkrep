@@ -48,3 +48,20 @@ the video; it is not a diagnosis of failure, RIR or RPE.
 ## License
 
 Apache-2.0. `parkrep/locotrack/` is vendored LocoTrack model code (Apache-2.0, commit 3385a23).
+
+## Future improvements
+
+Found by running ParkRep on a real gym session (14 clips) and checking against the logged sets
+in Hevy: 12 of 14 rep counts matched, and velocity loss rose with the logged RPE.
+
+- **Robust reference.** The first "rep" can include getting set up (a 3.3 s concentric in a
+  warmup clip), which skews every comparison. Use the median of reps 2–4, or drop a first rep
+  that is far off the pattern.
+- **Concentric direction.** The code assumes "up on screen" is the concentric phase. With a
+  low camera under a leg extension this flips and mixes in pauses (a −237% velocity loss).
+  Detect the direction from phase speed, or add `--concentric up|down`.
+- **Low-coverage warning.** Both wrong counts (leg curl, 4 of 11–12; triceps, 3 of 12) had the
+  point visible in only 58–60% of frames because the limb left the frame. Below ~80% coverage,
+  warn instead of reporting a confident count.
+- **Trim idle time.** Several clips start with walking in or end with an empty machine.
+  Ignore motion outside the main run of reps.

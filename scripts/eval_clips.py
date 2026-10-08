@@ -6,9 +6,9 @@ track, picks the best one the same way parkrep.cli.main does (highest track_qual
 the counted reps with the labelled Hevy reps. No GPU or video needed.
 
 Usage:
-    uv run python scripts/eval_clips.py ~/Downloads/TREINOSHOJE
-    uv run python scripts/eval_clips.py ~/Downloads/TREINOSHOJE -v            # per-candidate tables
-    uv run python scripts/eval_clips.py ~/Downloads/TREINOSHOJE --json out.json  # full rows for diffing
+    uv run python scripts/eval_clips.py sessions/2026-10-07
+    uv run python scripts/eval_clips.py sessions/2026-10-07 -v            # per-candidate tables
+    uv run python scripts/eval_clips.py sessions/2026-10-07 --json out.json  # full rows for diffing
 """
 from __future__ import annotations
 

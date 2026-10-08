@@ -32,7 +32,7 @@ Display Matrix were treated as 1280x720 instead of 720x1280; frames were decoded
 and the HUD background came out as horizontal streaks.
 - Fix: only assign when `"rotation" in side`. Regression test: `tests/test_video.py`.
 
-## Re-run after B0, B1, B2, B5, B6, B9 (outputs in `~/Downloads/TREINOSHOJE/parkrep_v2`)
+## Re-run after B0, B1, B2, B5, B6, B9 (outputs in `sessions/2026-10-07/parkrep_v2`)
 
 | Clip | Hevy | Reps before → after | Last-reps loss before → after | Warnings after |
 | --- | --- | --- | --- | --- |
@@ -85,7 +85,7 @@ velocity reference.
   the longest chain split a leg-extension set with a rest-pause (2739: 10 → 6).
 - Caveat: 05/out was used to find those two problems, so it is no longer a held-out test. The
   next recorded session is the clean check.
-- Fresh GPU run with the border penalty (`~/Downloads/TREINOSHOJE/parkrep_v3`): 2767 picked a new
+- Fresh GPU run with the border penalty (`sessions/2026-10-07/parkrep_v3`): 2767 picked a new
   point on the cable/handle (100% coverage) and counts 11 = Hevy. **Partly a coincidence**: reps 1–10
   are real (every ~1.9 s up to 20.3 s), but rep 11 at 26.7 s (concentric 3.76 s) is the person
   standing up, let in by the last-move exemption; one or two real reps around 21–24 s are missing.

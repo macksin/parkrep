@@ -91,8 +91,8 @@ def discover(info: VideoInfo, roi: tuple[int, int, int, int] | None = None,
                 tracks.append({"start": i, "xy": [(float(x), float(y))]})
                 active.append(len(tracks) - 1)
         prev = gray
-        if progress and i % 30 == 0:
-            progress(i, n)
+        if progress and (i % 30 == 0 or i == n - 1):
+            progress(i + 1, n)
 
     min_len = max(8, round(MIN_TRACK_S * info.fps))
     cands = []

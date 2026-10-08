@@ -95,6 +95,8 @@ def track_points(info: VideoInfo, queries: list[tuple[int, tuple[float, float]]]
     score = np.zeros((k, n))
     chunk_xy: dict[tuple[int, int], np.ndarray] = {}
     done = [0]
+    backward = sum(1 for c in range(len(bounds) - 1) if any(c < h for h in home))
+    total = len(bounds) - min(home) + backward
 
     def process(c, items):  # items: list of (query index, absolute frame, model xy)
         if not items:
@@ -114,7 +116,7 @@ def track_points(info: VideoInfo, queries: list[tuple[int, tuple[float, float]]]
             torch.mps.empty_cache()
         done[0] += 1
         if progress:
-            progress(done[0], 2 * len(bounds))
+            progress(done[0], total)
 
     def handover(qi, c_from, lo, hi):
         a = bounds[c_from][0]

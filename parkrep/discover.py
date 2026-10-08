@@ -18,6 +18,8 @@ GRID_STEP = 14           # px between seeded points at discovery resolution
 RESEED_S = 1.5           # top up the mesh this often
 MIN_TRACK_S = 2.0        # shorter trajectories are ignored
 FB_MAX_ERR = 1.0         # forward-backward LK consistency, px
+BORDER_PENALTY = 0.3     # score multiplier for tracks sitting at the frame edge (e.g. a knee cut off by the border)
+BORDER_FRAC = 0.05      # "at the edge" = median position within this fraction of width/height
 LK = dict(winSize=(21, 21), maxLevel=3,
           criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
 
@@ -118,6 +120,9 @@ def discover(info: VideoInfo, roi: tuple[int, int, int, int] | None = None,
         score = amp * np.sqrt(min(reversals, 30)) * (0.3 + coverage) / (1 + jitter / 2)
         q = a + len(xy) // 2
         qx, qy = (xy[len(xy) // 2] + 0.5) * np.array([sx, sy]) - 0.5
+        mx, my = (np.median(xy, axis=0) + 0.5) * np.array([sx, sy]) - 0.5
+        if min(mx, info.width - mx) < BORDER_FRAC * info.width or min(my, info.height - my) < BORDER_FRAC * info.height:
+            score *= BORDER_PENALTY
         cands.append(Candidate(q, (float(qx), float(qy)), a, b - 1, amp, reversals, float(score)))
 
     cands.sort(key=lambda c: -c.score)

@@ -22,6 +22,7 @@ LIME = (165, 235, 25, 255)
 ORANGE = (255, 132, 18, 255)
 PURPLE = (179, 96, 243, 255)
 GRAY = (105, 118, 132, 255)
+ADJUST = (150, 138, 112, 255)  # muted grey-amber: setup / re-racking frames, not reps
 GRID = (120, 143, 165, 40)
 
 BODY = "/System/Library/Fonts/Avenir Next Condensed.ttc"
@@ -46,6 +47,18 @@ def fit(d, xy, value, size, maxw, color=WHITE, style="body"):
     while size > 9 and d.textlength(value, font=font(size, style)) > maxw:
         size -= 1
     text(d, xy, value, size, color, style)
+
+
+def wrap(d, value, size, maxw, style="body"):
+    lines, cur = [], ""
+    for word in str(value).split():
+        test = f"{cur} {word}".strip()
+        if not cur or d.textlength(test, font=font(size, style)) <= maxw:
+            cur = test
+        else:
+            lines.append(cur)
+            cur = word
+    return lines + ([cur] if cur else [])
 
 
 def panel(d, box, accent=PURPLE):
@@ -97,6 +110,7 @@ class HUD:
         self.frame = Frame(width, height)
         self.title = title.upper()
         self.subtitle = subtitle
+        self.warnings = [str(w) for w in getattr(a, "warnings", None) or []][:3]
         self.t = a.t
         self.reps = a.reps
         self.refs = [r for r in a.reps if r.reference]
@@ -193,6 +207,14 @@ class HUD:
             d.ellipse((x - radius, 69 - radius, x + radius, 69 + radius),
                       fill=col if r.peak <= i else None, outline=col)
 
+    def badge(self, d):
+        """Amber tag in the free strip right of the subtitle, under the REPS dots."""
+        label = "LOW CONFIDENCE"
+        x1 = 706
+        x0 = x1 - d.textlength(label, font=font(15, "display")) - 16
+        d.rectangle((x0, 75, x1, 91), fill=ORANGE)
+        text(d, (x0 + 8, 75), label, 15, (5, 10, 18, 255), "display")
+
     def stats(self, d, i):
         d.rectangle((20, 94, 704, 196), fill=(5, 12, 21, 113))
         labels = [(28, "PHASE"), (211, "LAST CONCENTRIC"), (380, "VELOCITY LOSS"), (560, "ROM")]
@@ -202,7 +224,7 @@ class HUD:
             d.line((x, 103, x, 166), fill=(99, 157, 181, 155))
         d.line((27, 103, 27, 164), fill=PURPLE, width=2)
         phase = self.a.phase[i]
-        col = {"CONCENTRIC": LIME, "ECCENTRIC": CYAN, "TRACKING GAP": ORANGE}.get(phase, WHITE)
+        col = {"CONCENTRIC": LIME, "ECCENTRIC": CYAN, "TRACKING GAP": ORANGE, "ADJUST": ADJUST}.get(phase, WHITE)
         fit(d, (39, 126), phase, 48, 145, col, "display")
         done = self.done(i)
         last = done[-1] if done else None
@@ -241,14 +263,16 @@ class HUD:
 
     def marker(self, d, i):
         xy = self.a.xy
+        adjusting = self.a.phase[i] == "ADJUST"
         a = max(0, i - int(self.a.fps * 0.8))
         trail = [self.frame.map(*p) for p in xy[a:i + 1] if np.isfinite(p).all()]
         for k in range(1, len(trail)):
             alpha = int(200 * k / len(trail))
-            d.line((trail[k - 1], trail[k]), fill=(165, 235, 25, alpha), width=3)
+            rgb = ADJUST[:3] if adjusting else (165, 235, 25)
+            d.line((trail[k - 1], trail[k]), fill=(*rgb, alpha), width=3)
         if np.isfinite(xy[i]).all():
             x, y = self.frame.map(*xy[i])
-            col = ORANGE if self.a.inferred[i] else CYAN
+            col = ADJUST if adjusting else ORANGE if self.a.inferred[i] else CYAN
             d.ellipse((x - 10, y - 10, x + 10, y + 10), outline=col, width=2)
             d.ellipse((x - 5, y - 5, x + 5, y + 5), outline=(233, 250, 251, 220))
             d.line((x + 12, y, x + 30, y), fill=col)
@@ -366,7 +390,7 @@ class HUD:
                        else "GRINDING - NEAR THE END OF THE SET" if last2 < 40 else "HEAVY SLOWDOWN")
             fit(d, (32, 723), verdict, 22, 660, ORANGE if last2 >= 25 else LIME, "display")
         else:
-            fit(d, (32, 694), "SPEED COMPARISON / BUILDING REFERENCE FROM FIRST REPS", 23, 660, MUTED, "display")
+            fit(d, (32, 694), "SPEED COMPARISON / BUILDING REFERENCE FROM EARLY REPS", 23, 660, MUTED, "display")
             fit(d, (32, 723), "EACH REP UPDATES WHEN ITS TOP IS REACHED", 21, 660, MUTED, "display")
         fit(d, (32, 750), "IMAGE-PLANE MOTION / RELATIVE TO THIS SET ONLY", 15, 660, GRAY)
 
@@ -384,6 +408,8 @@ class HUD:
         d = ImageDraw.Draw(layer)
         self.marker(d, i)
         self.header(d, i)
+        if self.warnings:
+            self.badge(d)
         self.stats(d, i)
         self.ruler(d, i)
         self.comparison(d, i)
@@ -398,8 +424,14 @@ class HUD:
         s = self.a.summary()
         layer = Image.new("RGBA", (W, H))
         d = ImageDraw.Draw(layer)
-        panel(d, (24, 229, 696, 768))
-        d.polygon([(32, 237), (688, 237), (688, 760), (32, 760)], fill=(8, 15, 25, 240))
+        warns = self.warnings
+        blocks = [wrap(d, w, 18, 600) for w in warns]
+        # rows end near y=692; the warning block (if any) pushes the footer and card bottom down
+        footer_y = 708 + (46 + sum(22 * len(b) + 8 for b in blocks) + 4 if warns else 0)
+        bottom = footer_y + 56 if warns else 768
+        panel(d, (24, 229, 696, bottom))
+        # opaque when warnings are shown so the warning text is not read over the HUD beneath
+        d.polygon([(32, 237), (688, 237), (688, bottom - 8), (32, bottom - 8)], fill=(8, 15, 25, 255 if warns else 240))
         d.line((48, 255, 48, 294), fill=PURPLE, width=3)
         text(d, (66, 254), "SET COMPLETE", 42, WHITE, "display")
         fit(d, (66, 301), f"{self.title}  /  {s['reps']} REPS  /  {self.t[-1]:.0f} S CLIP", 19, 600, MUTED)
@@ -421,10 +453,26 @@ class HUD:
             ("FASTEST REP", f"REP {fastest.number} / {fastest.concentric_s:.2f} s" if fastest else "--", LIME),
             ("POINT TRACKED", f"{s['tracked_share'] * 100:.0f}% OF FRAMES", WHITE),
         ]
+        n_adj = len(getattr(self.a, "adjustments", None) or [])
+        if n_adj:  # seventh row: tighter grid so it still ends above the divider at y=708
+            rows.append(("ADJUSTMENTS IGNORED", f"{n_adj}", ADJUST))
+        top, step = (478, 32) if n_adj else (486, 36)
         for k, (label, value, col) in enumerate(rows):
-            y = 486 + k * 36
+            y = top + k * step
             text(d, (49, y), label, 22, MUTED, "display")
             text(d, (400, y - 2), value, 26, col, "display")
-        d.line((48, 708, 672, 708), fill=(138, 154, 184, 140))
-        fit(d, (49, 720), "+ slower / - faster than the first reps  |  image motion, not a diagnosis", 17, 621, MUTED)
+        y = 708
+        if warns:
+            d.line((48, y, 672, y), fill=(138, 154, 184, 140))
+            text(d, (49, y + 10), "CHECK BEFORE TRUSTING", 25, ORANGE, "display")
+            y += 46
+            for lines in blocks:
+                d.rectangle((49, y + 5, 55, y + 11), fill=ORANGE)
+                for ln in lines:
+                    text(d, (66, y), ln, 18, WHITE)
+                    y += 22
+                y += 8
+            y += 4
+        d.line((48, y, 672, y), fill=(138, 154, 184, 140))
+        fit(d, (49, y + 12), "+ slower / - faster than the reference reps  |  image motion, not a diagnosis", 17, 621, MUTED)
         return Image.alpha_composite(background.convert("RGBA"), layer).convert("RGB")

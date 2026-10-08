@@ -46,7 +46,8 @@ def probe(path: Path) -> VideoInfo:
     w, h = int(stream["width"]), int(stream["height"])
     rotation = 0
     for side in stream.get("side_data_list", []):
-        rotation = int(float(side.get("rotation", 0)))
+        if "rotation" in side:
+            rotation = int(float(side["rotation"]))
     rotation = rotation or int(stream.get("tags", {}).get("rotate", 0))
     if abs(rotation) % 180 == 90:
         w, h = h, w
